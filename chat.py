@@ -3,10 +3,10 @@ import requests
 
 
 def send_message(msg):
-    url = f"http://127.0.0.1:5001/chat?q={msg}"
+    url = f"http://127.0.0.1:5001/chat"
 
     # get get request to url with query parameter q as `msg` variable.
-    response = requests.get(url)
+    response = requests.get(url, params={"q": msg})
     # parse the response
     output = response.text
     return output
