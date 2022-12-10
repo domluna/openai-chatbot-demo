@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -93,7 +94,7 @@ func newChat(db *sql.DB) (int64, error) {
 func main() {
 	db, err := sql.Open("sqlite3", DBPath)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal(err)
 		return
 	}
 	defer db.Close()
@@ -111,7 +112,7 @@ func main() {
 			// Table already exists, ignore the error
 			return
 		}
-		fmt.Println(err)
+		log.Fatal(err)
 		return
 	}
 
@@ -121,7 +122,9 @@ func main() {
 			message TEXT NOT NULL,
 			response TEXT,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY(chat_id) REFERENCES chats(id) NOT NULL
+			chat_id INTEGER NOT NULL,
+
+			FOREIGN KEY(chat_id) REFERENCES chats(id) 
 		)
 	`)
 	if err != nil {
@@ -129,7 +132,7 @@ func main() {
 			// Table already exists, ignore the error
 			return
 		}
-		fmt.Println(err)
+		log.Fatal(err)
 		return
 	}
 
