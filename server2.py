@@ -7,7 +7,6 @@ from revChatGPT.revChatGPT import Chatbot
 with open("config.json") as f:
     config = json.load(f)
 
-config["Authorization"] = None
 chatbot = Chatbot(config, conversation_id=None)
 chatbot.reset_chat()  # Forgets conversation
 chatbot.refresh_session()  # Uses the session_token to get a new bearer token

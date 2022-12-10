@@ -28,7 +28,7 @@ type Message struct {
 }
 
 const (
-	BaseURL = "http://localhost:5001"
+	BaseURL = "http://localhost:5001/chat"
 	DBPath  = "chatgpt.db"
 )
 
@@ -47,27 +47,25 @@ func endChat(db *sql.DB, chatID int64) error {
 	return nil
 }
 
-func askChat(db *sql.DB, chatID int64, question string) error {
+func askChat(db *sql.DB, chatID int64, question string) (string, error) {
 	// Ask the server for a question
 	url := fmt.Sprintf("%s?q=%s", BaseURL, url.QueryEscape(question))
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return "", err
 	}
 
 	// Read the response body
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println(err)
-		return err
+		return "", err
 	}
 	response := string(body)
 
 	// Save the question and response the messages tables
 	_, err = db.Exec("INSERT INTO messages (message, response, chat_id) VALUES (?, ?, ?)", question, response, chatID)
 
-	return nil
+	return response, nil
 }
 
 func newChat(db *sql.DB) (int64, error) {
@@ -89,6 +87,21 @@ func newChat(db *sql.DB) (int64, error) {
 	}
 
 	return id, nil
+}
+
+func renewChat(db *sql.DB, chatID int64) (int64, error) {
+	err := endChat(db, chatID)
+	if err != nil {
+		log.Fatal(err)
+		return 0, err
+	}
+	chatID, err = newChat(db)
+	if err != nil {
+		log.Fatal(err)
+		return 0, err
+	}
+
+	return chatID, nil
 }
 
 func main() {
@@ -148,24 +161,53 @@ func main() {
 	}
 
 	// Get the current most recent unfinished chat id
+	isFreshChat := false
 	var chatID int64
 	err = db.QueryRow("SELECT id FROM chats WHERE not done ORDER BY id DESC LIMIT 1").Scan(&chatID)
 	if err != nil {
 		// If there is no chat, create one
 		chatID, err = newChat(db)
 		if err != nil {
-			fmt.Println(err)
+			log.Fatal(err)
 			return
 		}
+		isFreshChat = true
 	}
 
+	fmt.Printf("QUESTION\n\n%s\n\n", question)
+
 	// Make the request to the server
-	if command == "ask" {
-		askChat(db, chatID, question)
+	if command == "cont" {
+		response, err := askChat(db, chatID, question)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+		fmt.Println("RESPONSE")
+		fmt.Println(response)
+	} else if command == "ask" {
+		if !isFreshChat {
+			chatID, err = renewChat(db, chatID)
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
+		}
+		response, err := askChat(db, chatID, question)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+		fmt.Printf("RESPONSE\n\n%s\n\n", response)
 	} else if command == "reset" {
 		endChat(db, chatID)
+		fmt.Println("Chat with ID", chatID, "ended")
 	} else {
 		fmt.Println("Invalid command")
 		return
 	}
+
+	fmt.Println("-------------------------")
+	fmt.Println("Current Chat ID:", chatID)
+	fmt.Println("-------------------------")
 }
