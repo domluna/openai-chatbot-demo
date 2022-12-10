@@ -29,7 +29,8 @@ type Message struct {
 
 const (
 	BaseURL = "http://localhost:5001/chat"
-	DBPath  = "chatgpt.db"
+	DBDir  = ".chatgpt"
+	DBName  = "chatgpt.db"
 )
 
 func endChat(db *sql.DB, chatID int64) error {
@@ -105,7 +106,20 @@ func renewChat(db *sql.DB, chatID int64) (int64, error) {
 }
 
 func main() {
-	db, err := sql.Open("sqlite3", DBPath)
+	home, err := os.UserHomeDir()
+	dir := fmt.Sprintf("%s/%s", home, DBDir)
+	// Check if the directory already exists.
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		// Create the directory.
+		err = os.Mkdir(dir, 0755)
+		if err != nil {
+			fmt.Printf("Error creating directory: %s\n", err)
+			return
+		}
+		fmt.Println("Directory created successfully.")
+	} 
+
+	db, err := sql.Open("sqlite3", fmt.Sprintf("%s/%s", dir, DBName))
 	if err != nil {
 		log.Fatal(err)
 		return
